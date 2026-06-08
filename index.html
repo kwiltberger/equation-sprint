@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Equation Sprint Prove It</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f6f9fb;
+      color: #1f2933;
+      margin: 0;
+      padding: 0;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .header {
+      background: #0f2d44;
+      color: white;
+      padding: 28px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid #d6e6ef;
+      border-left: 6px solid #2f80a8;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 18px;
+    }
+
+    .success {
+      border-left-color: #3ca65c;
+      background: #eefaf1;
+    }
+
+    .warning {
+      border-left-color: #f2b705;
+      background: #fff8e6;
+    }
+
+    .equation {
+      font-size: 34px;
+      font-weight: bold;
+      text-align: center;
+      margin: 24px 0;
+      color: #0f2d44;
+    }
+
+    input {
+      padding: 12px;
+      font-size: 18px;
+      width: 100%;
+      max-width: 300px;
+      border: 1px solid #d6e6ef;
+      border-radius: 8px;
+      margin: 8px 0;
+    }
+
+    button {
+      background: #0f2d44;
+      color: white;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 6px;
+    }
+
+    button:hover {
+      background: #2f80a8;
+    }
+
+    .timer {
+      font-size: 24px;
+      font-weight: bold;
+      color: #0f2d44;
+    }
+
+    .feedback {
+      font-weight: bold;
+      margin-top: 12px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .progress {
+      font-weight: bold;
+      color: #0f2d44;
+    }
+
+    .code {
+      background: #0f2d44;
+      color: white;
+      font-size: 28px;
+      letter-spacing: 2px;
+      padding: 18px;
+      border-radius: 10px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .small {
+      font-size: 14px;
+      color: #4b5563;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+
+    <div class="header">
+      <h1>Algebra 1 Equation Sprint</h1>
+      <p>Prove It Challenge: Solve 5 Equations Correctly</p>
+    </div>
+
+    <div id="startScreen" class="card">
+      <h2>Mission Briefing</h2>
+      <p>You will solve <strong>5 randomly generated linear equations</strong>.</p>
+      <p>Your screen recording must show your work, your answers, your score, and your completion code.</p>
+
+      <div class="card warning">
+        <p><strong>Goal:</strong> Score 5/5 to earn a mastery completion code.</p>
+        <p><strong>Reminder:</strong> Explain your thinking out loud while recording.</p>
+      </div>
+
+      <label for="studentName"><strong>Enter your first name:</strong></label><br />
+      <input type="text" id="studentName" placeholder="First name" />
+
+      <br />
+      <button onclick="startChallenge()">Start Challenge</button>
+    </div>
+
+    <div id="gameScreen" class="hidden">
+
+      <div class="card">
+        <p class="progress" id="progressText">Problem 1 of 5</p>
+        <p class="timer">Time: <span id="timer">0</span> seconds</p>
+      </div>
+
+      <div class="card success">
+        <h2>Solve the Equation</h2>
+        <div class="equation" id="equationText"></div>
+
+        <label for="answerInput"><strong>Your answer for x:</strong></label><br />
+        <input type="number" id="answerInput" placeholder="Enter x-value" />
+
+        <br />
+        <button onclick="checkAnswer()">Submit Answer</button>
+
+        <p id="feedback" class="feedback"></p>
+      </div>
+
+    </div>
+
+    <div id="endScreen" class="hidden">
+
+      <div class="card success">
+        <h2>Challenge Complete</h2>
+        <p id="resultSummary"></p>
+        <p id="masteryMessage"></p>
+      </div>
+
+      <div id="codeBox" class="card hidden">
+        <h2>Mastery Completion Code</h2>
+        <p>Show this code clearly in your video recording.</p>
+        <div class="code" id="completionCode"></div>
+      </div>
+
+      <div class="card warning">
+        <h3>Video Reminder</h3>
+        <p>Your video should show:</p>
+        <p>☐ All 5 equations</p>
+        <p>☐ Your solving process</p>
+        <p>☐ Your final score</p>
+        <p>☐ Your completion code, if earned</p>
+      </div>
+
+      <button onclick="restartChallenge()">Try Again</button>
+
+    </div>
+
+  </div>
+
+  <script>
+    let problems = [];
+    let currentProblem = 0;
+    let score = 0;
+    let startTime = 0;
+    let timerInterval;
+    let studentName = "";
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function generateProblem() {
+      const type = randomInt(1, 4);
+      let x = randomInt(-10, 10);
+      while (x === 0) x = randomInt(-10, 10);
+
+      let equation = "";
+      let answer = x;
+
+      if (type === 1) {
+        const a = randomInt(2, 9);
+        const b = randomInt(-12, 12);
+        const c = a * x + b;
+        equation = `${a}x ${b >= 0 ? "+ " + b : "- " + Math.abs(b)} = ${c}`;
+      }
+
+      if (type === 2) {
+        const a = randomInt(2, 6);
+        const b = randomInt(-8, 8);
+        const c = randomInt(2, 8);
+        const d = a * (x + b) - c * x;
+        equation = `${a}(x ${b >= 0 ? "+ " + b : "- " + Math.abs(b)}) = ${c}x ${d >= 0 ? "+ " + d : "- " + Math.abs(d)}`;
+      }
+
+      if (type === 3) {
+        const a = randomInt(2, 8);
+        const b = randomInt(-10, 10);
+        const c = randomInt(2, 8);
+        const d = (a - c) * x + b;
+        equation = `${a}x ${b >= 0 ? "+ " + b : "- " + Math.abs(b)} = ${c}x ${d >= 0 ? "+ " + d : "- " + Math.abs(d)}`;
+      }
+
+      if (type === 4) {
+        const a = randomInt(2, 5);
+        const b = randomInt(-6, 6);
+        const c = randomInt(2, 5);
+        const d = randomInt(-6, 6);
+        const left = a * (x + b);
+        const rightConstant = left - c * (x + d);
+        equation = `${a}(x ${b >= 0 ? "+ " + b : "- " + Math.abs(b)}) = ${c}(x ${d >= 0 ? "+ " + d : "- " + Math.abs(d)}) ${rightConstant >= 0 ? "+ " + rightConstant : "- " + Math.abs(rightConstant)}`;
+      }
+
+      return { equation, answer };
+    }
+
+    function startChallenge() {
+      studentName = document.getElementById("studentName").value.trim();
+
+      if (studentName === "") {
+        alert("Please enter your first name before starting.");
+        return;
+      }
+
+      problems = [];
+      for (let i = 0; i < 5; i++) {
+        problems.push(generateProblem());
+      }
+
+      currentProblem = 0;
+      score = 0;
+      startTime = Date.now();
+
+      document.getElementById("startScreen").classList.add("hidden");
+      document.getElementById("gameScreen").classList.remove("hidden");
+
+      timerInterval = setInterval(updateTimer, 1000);
+      showProblem();
+    }
+
+    function updateTimer() {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      document.getElementById("timer").textContent = elapsed;
+    }
+
+    function showProblem() {
+      document.getElementById("progressText").textContent = `Problem ${currentProblem + 1} of 5`;
+      document.getElementById("equationText").textContent = problems[currentProblem].equation;
+      document.getElementById("answerInput").value = "";
+      document.getElementById("feedback").textContent = "";
+      document.getElementById("answerInput").focus();
+    }
+
+    function checkAnswer() {
+      const userAnswer = Number(document.getElementById("answerInput").value);
+      const correctAnswer = problems[currentProblem].answer;
+
+      if (document.getElementById("answerInput").value === "") {
+        alert("Please enter an answer.");
+        return;
+      }
+
+      if (userAnswer === correctAnswer) {
+        score++;
+        document.getElementById("feedback").textContent = "Correct!";
+      } else {
+        document.getElementById("feedback").textContent = `Incorrect. The correct answer was x = ${correctAnswer}.`;
+      }
+
+      setTimeout(() => {
+        currentProblem++;
+
+        if (currentProblem < 5) {
+          showProblem();
+        } else {
+          endChallenge();
+        }
+      }, 1000);
+    }
+
+    function endChallenge() {
+      clearInterval(timerInterval);
+
+      const totalTime = Math.floor((Date.now() - startTime) / 1000);
+
+      document.getElementById("gameScreen").classList.add("hidden");
+      document.getElementById("endScreen").classList.remove("hidden");
+
+      document.getElementById("resultSummary").innerHTML =
+        `<strong>${studentName}</strong>, you scored <strong>${score}/5</strong> in <strong>${totalTime} seconds</strong>.`;
+
+      if (score === 5) {
+        document.getElementById("masteryMessage").innerHTML =
+          "<strong>Mastery earned!</strong> Show your completion code in your video.";
+        document.getElementById("codeBox").classList.remove("hidden");
+        document.getElementById("completionCode").textContent = generateCompletionCode(totalTime);
+      } else {
+        document.getElementById("masteryMessage").innerHTML =
+          "<strong>Keep practicing.</strong> You need 5/5 to earn the mastery completion code.";
+        document.getElementById("codeBox").classList.add("hidden");
+      }
+    }
+
+    function generateCompletionCode(totalTime) {
+      const initials = studentName.substring(0, 2).toUpperCase();
+      const randomCode = Math.floor(1000 + Math.random() * 9000);
+      return `ALG-${initials}-${score}${totalTime}-${randomCode}`;
+    }
+
+    function restartChallenge() {
+      document.getElementById("endScreen").classList.add("hidden");
+      document.getElementById("startScreen").classList.remove("hidden");
+      document.getElementById("studentName").value = studentName;
+      document.getElementById("codeBox").classList.add("hidden");
+    }
+  </script>
+</body>
+</html>
