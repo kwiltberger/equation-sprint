@@ -246,51 +246,47 @@
       return "- " + Math.abs(n);
     }
 
-    function generateOneSolutionProblem() {
-      let x = randomInt(-10, 10);
-      while (x === 0) {
-        x = randomInt(-10, 10);
-      }
+    <script>
+function generateOneSolutionProblem() {
+  let x = randomInt(-10, 10);
+  while (x === 0) {
+    x = randomInt(-10, 10);
+  }
 
-      const type = randomInt(1, 3);
-      let equation = "";
+  const type = randomInt(1, 2);
+  let equation = "";
 
-      if (type === 1) {
-        const a = randomInt(2, 9);
-        const b = randomInt(-12, 12);
-        const c = a * x + b;
-        equation = `${a}x ${formatSignedNumber(b)} = ${c}`;
-      }
+  if (type === 1) {
+    const a = randomInt(2, 9);
+    const b = randomInt(-12, 12);
+    const c = a * x + b;
 
-      if (type === 2) {
-        const a = randomInt(2, 6);
-        const b = randomInt(-8, 8);
-        const c = randomInt(2, 8);
-        const d = a * (x + b) - c * x;
-        equation = `${a}(x ${formatSignedNumber(b)}) = ${c}x ${formatSignedNumber(d)}`;
-      }
+    equation = `${a}x ${formatSignedNumber(b)} = ${c}`;
+  }
 
-      if (type === 3) {
-        let a = randomInt(2, 8);
-        let c = randomInt(2, 8);
+  if (type === 2) {
+    let a = randomInt(2, 8);
+    let c = randomInt(2, 8);
 
-        while (a === c) {
-          c = randomInt(2, 8);
-        }
-
-        const b = randomInt(-10, 10);
-        const d = (a - c) * x + b;
-        equation = `${a}x ${formatSignedNumber(b)} = ${c}x ${formatSignedNumber(d)}`;
-      }
-
-      return {
-        type: "One Solution",
-        title: "Solve for x",
-        equation: equation,
-        answerMode: "number",
-        answer: x
-      };
+    while (a === c) {
+      c = randomInt(2, 8);
     }
+
+    const b = randomInt(-10, 10);
+    const d = (a - c) * x + b;
+
+    equation = `${a}x ${formatSignedNumber(b)} = ${c}x ${formatSignedNumber(d)}`;
+  }
+
+  return {
+    type: "One Solution",
+    title: "Solve for x",
+    equation: equation,
+    answerMode: "number",
+    answer: x
+  };
+}
+
 
     function generateLiteralEquationProblem() {
       let x = randomInt(-10, 10);
