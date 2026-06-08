@@ -56,11 +56,11 @@
       color: #0f2d44;
     }
 
-    input {
+    input, select {
       padding: 12px;
       font-size: 18px;
       width: 100%;
-      max-width: 300px;
+      max-width: 360px;
       border: 1px solid #d6e6ef;
       border-radius: 8px;
       margin: 8px 0;
@@ -83,9 +83,13 @@
     }
 
     .timer {
-      font-size: 24px;
+      font-size: 26px;
       font-weight: bold;
       color: #0f2d44;
+    }
+
+    .timer.low {
+      color: #b42318;
     }
 
     .feedback {
@@ -113,6 +117,10 @@
       font-weight: bold;
     }
 
+    .choices {
+      margin-top: 12px;
+    }
+
     .small {
       font-size: 14px;
       color: #4b5563;
@@ -130,12 +138,20 @@
 
     <div id="startScreen" class="card">
       <h2>Mission Briefing</h2>
-      <p>You will solve <strong>5 randomly generated linear equations</strong>.</p>
-      <p>Your screen recording must show your work, your answers, your score, and your completion code.</p>
+      <p>You will solve <strong>5 equation challenges</strong>.</p>
+      <p>Each question has a <strong>1-minute countdown timer</strong>. The timer resets for each new question.</p>
 
       <div class="card warning">
+        <p><strong>Your challenge includes:</strong></p>
+        <p>☐ 2 equations with one solution</p>
+        <p>☐ 1 literal equation</p>
+        <p>☐ 1 equation with no solution</p>
+        <p>☐ 1 equation with infinitely many solutions</p>
+      </div>
+
+      <div class="card success">
         <p><strong>Goal:</strong> Score 5/5 to earn a mastery completion code.</p>
-        <p><strong>Reminder:</strong> Explain your thinking out loud while recording.</p>
+        <p><strong>Reminder:</strong> Start your video recording before clicking Start Challenge.</p>
       </div>
 
       <label for="studentName"><strong>Enter your first name:</strong></label><br />
@@ -149,15 +165,23 @@
 
       <div class="card">
         <p class="progress" id="progressText">Problem 1 of 5</p>
-        <p class="timer">Time: <span id="timer">0</span> seconds</p>
+        <p class="progress" id="problemTypeText"></p>
+        <p class="timer" id="timerDisplay">Time Remaining: <span id="timer">60</span> seconds</p>
       </div>
 
       <div class="card success">
-        <h2>Solve the Equation</h2>
+        <h2 id="questionTitle">Solve the Equation</h2>
         <div class="equation" id="equationText"></div>
 
-        <label for="answerInput"><strong>Your answer for x:</strong></label><br />
-        <input type="number" id="answerInput" placeholder="Enter x-value" />
+        <div id="numericAnswerArea">
+          <label for="answerInput"><strong>Your answer for x:</strong></label><br />
+          <input type="number" id="answerInput" placeholder="Enter x-value" />
+        </div>
+
+        <div id="multipleChoiceArea" class="hidden">
+          <label for="choiceInput"><strong>Choose the correct answer:</strong></label><br />
+          <select id="choiceInput"></select>
+        </div>
 
         <br />
         <button onclick="checkAnswer()">Submit Answer</button>
@@ -184,7 +208,7 @@
       <div class="card warning">
         <h3>Video Reminder</h3>
         <p>Your video should show:</p>
-        <p>☐ All 5 equations</p>
+        <p>☐ All 5 questions</p>
         <p>☐ Your solving process</p>
         <p>☐ Your final score</p>
         <p>☐ Your completion code, if earned</p>
@@ -200,27 +224,40 @@
     let problems = [];
     let currentProblem = 0;
     let score = 0;
-    let startTime = 0;
+    let questionTimer = 60;
     let timerInterval;
     let studentName = "";
+    let totalSecondsUsed = 0;
+    let questionAnswered = false;
 
     function randomInt(min, max) {
       return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
-    function generateProblem() {
-      const type = randomInt(1, 4);
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function formatSignedNumber(n) {
+      return n >= 0 ? "+ " + n : "- " + Math.abs(n);
+    }
+
+    function generateOneSolutionProblem() {
+      const type = randomInt(1, 3);
       let x = randomInt(-10, 10);
       while (x === 0) x = randomInt(-10, 10);
 
       let equation = "";
-      let answer = x;
 
       if (type === 1) {
         const a = randomInt(2, 9);
         const b = randomInt(-12, 12);
         const c = a * x + b;
-        equation = `${a}x ${b >= 0 ? "+ " + b : "- " + Math.abs(b)} = ${c}`;
+        equation = `${a}x ${formatSignedNumber(b)} = ${c}`;
       }
 
       if (type === 2) {
@@ -228,28 +265,137 @@
         const b = randomInt(-8, 8);
         const c = randomInt(2, 8);
         const d = a * (x + b) - c * x;
-        equation = `${a}(x ${b >= 0 ? "+ " + b : "- " + Math.abs(b)}) = ${c}x ${d >= 0 ? "+ " + d : "- " + Math.abs(d)}`;
+        equation = `${a}(x ${formatSignedNumber(b)}) = ${c}x ${formatSignedNumber(d)}`;
       }
 
       if (type === 3) {
         const a = randomInt(2, 8);
         const b = randomInt(-10, 10);
         const c = randomInt(2, 8);
+        while (c === a) c = randomInt(2, 8);
         const d = (a - c) * x + b;
-        equation = `${a}x ${b >= 0 ? "+ " + b : "- " + Math.abs(b)} = ${c}x ${d >= 0 ? "+ " + d : "- " + Math.abs(d)}`;
+        equation = `${a}x ${formatSignedNumber(b)} = ${c}x ${formatSignedNumber(d)}`;
       }
 
-      if (type === 4) {
-        const a = randomInt(2, 5);
-        const b = randomInt(-6, 6);
-        const c = randomInt(2, 5);
-        const d = randomInt(-6, 6);
-        const left = a * (x + b);
-        const rightConstant = left - c * (x + d);
-        equation = `${a}(x ${b >= 0 ? "+ " + b : "- " + Math.abs(b)}) = ${c}(x ${d >= 0 ? "+ " + d : "- " + Math.abs(d)}) ${rightConstant >= 0 ? "+ " + rightConstant : "- " + Math.abs(rightConstant)}`;
-      }
+      return {
+        type: "One Solution",
+        title: "Solve the Equation",
+        equation: equation,
+        answerType: "number",
+        answer: x
+      };
+    }
 
-      return { equation, answer };
+    function generateLiteralEquationProblem() {
+      const literalProblems = [
+        {
+          equation: "A = lw, solve for w",
+          choices: [
+            { text: "w = A / l", correct: true },
+            { text: "w = Al", correct: false },
+            { text: "w = l / A", correct: false },
+            { text: "w = A - l", correct: false }
+          ]
+        },
+        {
+          equation: "d = rt, solve for t",
+          choices: [
+            { text: "t = d / r", correct: true },
+            { text: "t = dr", correct: false },
+            { text: "t = r / d", correct: false },
+            { text: "t = d - r", correct: false }
+          ]
+        },
+        {
+          equation: "C = 2πr, solve for r",
+          choices: [
+            { text: "r = C / 2π", correct: true },
+            { text: "r = 2πC", correct: false },
+            { text: "r = 2π / C", correct: false },
+            { text: "r = C - 2π", correct: false }
+          ]
+        },
+        {
+          equation: "y = mx + b, solve for m",
+          choices: [
+            { text: "m = (y - b) / x", correct: true },
+            { text: "m = y - bx", correct: false },
+            { text: "m = x / (y - b)", correct: false },
+            { text: "m = (y + b) / x", correct: false }
+          ]
+        },
+        {
+          equation: "V = lwh, solve for h",
+          choices: [
+            { text: "h = V / lw", correct: true },
+            { text: "h = Vlw", correct: false },
+            { text: "h = lw / V", correct: false },
+            { text: "h = V - lw", correct: false }
+          ]
+        }
+      ];
+
+      const selected = literalProblems[randomInt(0, literalProblems.length - 1)];
+      selected.choices = shuffle(selected.choices);
+
+      return {
+        type: "Literal Equation",
+        title: "Rearrange the Literal Equation",
+        equation: selected.equation,
+        answerType: "choice",
+        choices: selected.choices,
+        answer: selected.choices.findIndex(choice => choice.correct)
+      };
+    }
+
+    function generateNoSolutionProblem() {
+      const a = randomInt(2, 8);
+      const b = randomInt(-10, 10);
+      let c = b;
+      while (c === b) c = randomInt(-10, 10);
+
+      return {
+        type: "No Solution",
+        title: "Identify the Solution Type",
+        equation: `${a}x ${formatSignedNumber(b)} = ${a}x ${formatSignedNumber(c)}`,
+        answerType: "choice",
+        choices: [
+          { text: "One solution", correct: false },
+          { text: "No solution", correct: true },
+          { text: "Infinitely many solutions", correct: false }
+        ],
+        answer: 1
+      };
+    }
+
+    function generateInfiniteSolutionsProblem() {
+      const a = randomInt(2, 7);
+      const b = randomInt(-8, 8);
+
+      return {
+        type: "Infinitely Many Solutions",
+        title: "Identify the Solution Type",
+        equation: `${a}(x ${formatSignedNumber(b)}) = ${a}x ${formatSignedNumber(a * b)}`,
+        answerType: "choice",
+        choices: [
+          { text: "One solution", correct: false },
+          { text: "No solution", correct: false },
+          { text: "Infinitely many solutions", correct: true }
+        ],
+        answer: 2
+      };
+    }
+
+    function buildProblemSet() {
+      const set = [
+        generateOneSolutionProblem(),
+        generateOneSolutionProblem(),
+        generateLiteralEquationProblem(),
+        generateNoSolutionProblem(),
+        generateInfiniteSolutionsProblem()
+      ];
+
+      return shuffle(set);
     }
 
     function startChallenge() {
@@ -260,78 +406,177 @@
         return;
       }
 
-      problems = [];
-      for (let i = 0; i < 5; i++) {
-        problems.push(generateProblem());
-      }
-
+      problems = buildProblemSet();
       currentProblem = 0;
       score = 0;
-      startTime = Date.now();
+      totalSecondsUsed = 0;
 
       document.getElementById("startScreen").classList.add("hidden");
+      document.getElementById("endScreen").classList.add("hidden");
       document.getElementById("gameScreen").classList.remove("hidden");
 
-      timerInterval = setInterval(updateTimer, 1000);
       showProblem();
     }
 
-    function updateTimer() {
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      document.getElementById("timer").textContent = elapsed;
+    function startQuestionTimer() {
+      clearInterval(timerInterval);
+      questionTimer = 60;
+      questionAnswered = false;
+      updateTimerDisplay();
+
+      timerInterval = setInterval(() => {
+        questionTimer--;
+        updateTimerDisplay();
+
+        if (questionTimer <= 0) {
+          clearInterval(timerInterval);
+          handleTimeUp();
+        }
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      document.getElementById("timer").textContent = questionTimer;
+      const timerDisplay = document.getElementById("timerDisplay");
+
+      if (questionTimer <= 10) {
+        timerDisplay.classList.add("low");
+      } else {
+        timerDisplay.classList.remove("low");
+      }
+    }
+
+    function handleTimeUp() {
+      if (questionAnswered) return;
+
+      questionAnswered = true;
+      totalSecondsUsed += 60;
+
+      document.getElementById("feedback").textContent = "Time is up. This question is marked incorrect.";
+
+      setTimeout(() => {
+        moveToNextProblem();
+      }, 1400);
     }
 
     function showProblem() {
+      const problem = problems[currentProblem];
+
       document.getElementById("progressText").textContent = `Problem ${currentProblem + 1} of 5`;
-      document.getElementById("equationText").textContent = problems[currentProblem].equation;
-      document.getElementById("answerInput").value = "";
+      document.getElementById("problemTypeText").textContent = `Question Type: ${problem.type}`;
+      document.getElementById("questionTitle").textContent = problem.title;
+      document.getElementById("equationText").textContent = problem.equation;
       document.getElementById("feedback").textContent = "";
-      document.getElementById("answerInput").focus();
+
+      const numericArea = document.getElementById("numericAnswerArea");
+      const choiceArea = document.getElementById("multipleChoiceArea");
+      const answerInput = document.getElementById("answerInput");
+      const choiceInput = document.getElementById("choiceInput");
+
+      answerInput.value = "";
+      choiceInput.innerHTML = "";
+
+      if (problem.answerType === "number") {
+        numericArea.classList.remove("hidden");
+        choiceArea.classList.add("hidden");
+        answerInput.focus();
+      } else {
+        numericArea.classList.add("hidden");
+        choiceArea.classList.remove("hidden");
+
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "";
+        defaultOption.textContent = "Select an answer";
+        choiceInput.appendChild(defaultOption);
+
+        problem.choices.forEach((choice, index) => {
+          const option = document.createElement("option");
+          option.value = index;
+          option.textContent = choice.text;
+          choiceInput.appendChild(option);
+        });
+      }
+
+      startQuestionTimer();
     }
 
     function checkAnswer() {
-      const userAnswer = Number(document.getElementById("answerInput").value);
-      const correctAnswer = problems[currentProblem].answer;
+      if (questionAnswered) return;
 
-      if (document.getElementById("answerInput").value === "") {
-        alert("Please enter an answer.");
-        return;
+      const problem = problems[currentProblem];
+      let isCorrect = false;
+
+      if (problem.answerType === "number") {
+        const answerValue = document.getElementById("answerInput").value;
+
+        if (answerValue === "") {
+          alert("Please enter an answer.");
+          return;
+        }
+
+        isCorrect = Number(answerValue) === problem.answer;
       }
 
-      if (userAnswer === correctAnswer) {
+      if (problem.answerType === "choice") {
+        const choiceValue = document.getElementById("choiceInput").value;
+
+        if (choiceValue === "") {
+          alert("Please select an answer.");
+          return;
+        }
+
+        isCorrect = Number(choiceValue) === problem.answer;
+      }
+
+      questionAnswered = true;
+      clearInterval(timerInterval);
+      totalSecondsUsed += 60 - questionTimer;
+
+      if (isCorrect) {
         score++;
         document.getElementById("feedback").textContent = "Correct!";
       } else {
-        document.getElementById("feedback").textContent = `Incorrect. The correct answer was x = ${correctAnswer}.`;
+        document.getElementById("feedback").textContent = getCorrectAnswerText(problem);
       }
 
       setTimeout(() => {
-        currentProblem++;
+        moveToNextProblem();
+      }, 1400);
+    }
 
-        if (currentProblem < 5) {
-          showProblem();
-        } else {
-          endChallenge();
-        }
-      }, 1000);
+    function getCorrectAnswerText(problem) {
+      if (problem.answerType === "number") {
+        return `Incorrect. The correct answer was x = ${problem.answer}.`;
+      }
+
+      const correctChoice = problem.choices.find(choice => choice.correct);
+      return `Incorrect. The correct answer was: ${correctChoice.text}.`;
+    }
+
+    function moveToNextProblem() {
+      currentProblem++;
+
+      if (currentProblem < 5) {
+        showProblem();
+      } else {
+        endChallenge();
+      }
     }
 
     function endChallenge() {
       clearInterval(timerInterval);
 
-      const totalTime = Math.floor((Date.now() - startTime) / 1000);
-
       document.getElementById("gameScreen").classList.add("hidden");
       document.getElementById("endScreen").classList.remove("hidden");
 
       document.getElementById("resultSummary").innerHTML =
-        `<strong>${studentName}</strong>, you scored <strong>${score}/5</strong> in <strong>${totalTime} seconds</strong>.`;
+        `<strong>${studentName}</strong>, you scored <strong>${score}/5</strong> in <strong>${totalSecondsUsed} seconds</strong>.`;
 
       if (score === 5) {
         document.getElementById("masteryMessage").innerHTML =
           "<strong>Mastery earned!</strong> Show your completion code in your video.";
         document.getElementById("codeBox").classList.remove("hidden");
-        document.getElementById("completionCode").textContent = generateCompletionCode(totalTime);
+        document.getElementById("completionCode").textContent = generateCompletionCode();
       } else {
         document.getElementById("masteryMessage").innerHTML =
           "<strong>Keep practicing.</strong> You need 5/5 to earn the mastery completion code.";
@@ -339,13 +584,14 @@
       }
     }
 
-    function generateCompletionCode(totalTime) {
+    function generateCompletionCode() {
       const initials = studentName.substring(0, 2).toUpperCase();
       const randomCode = Math.floor(1000 + Math.random() * 9000);
-      return `ALG-${initials}-${score}${totalTime}-${randomCode}`;
+      return `ALG-${initials}-${score}-${totalSecondsUsed}-${randomCode}`;
     }
 
     function restartChallenge() {
+      clearInterval(timerInterval);
       document.getElementById("endScreen").classList.add("hidden");
       document.getElementById("startScreen").classList.remove("hidden");
       document.getElementById("studentName").value = studentName;
