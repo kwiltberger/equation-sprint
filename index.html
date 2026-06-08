@@ -75,7 +75,7 @@
       font-size: 16px;
       font-weight: bold;
       cursor: pointer;
-      margin: 6px;
+      margin: 6px 0;
     }
 
     button:hover {
@@ -83,7 +83,7 @@
     }
 
     .timer {
-      font-size: 26px;
+      font-size: 30px;
       font-weight: bold;
       color: #0f2d44;
     }
@@ -116,15 +116,6 @@
       text-align: center;
       font-weight: bold;
     }
-
-    .choices {
-      margin-top: 12px;
-    }
-
-    .small {
-      font-size: 14px;
-      color: #4b5563;
-    }
   </style>
 </head>
 
@@ -133,18 +124,18 @@
 
     <div class="header">
       <h1>Algebra 1 Equation Sprint</h1>
-      <p>Prove It Challenge: Solve 5 Equations Correctly</p>
+      <p>Prove It Challenge: 5 Timed Equation Questions</p>
     </div>
 
     <div id="startScreen" class="card">
       <h2>Mission Briefing</h2>
-      <p>You will solve <strong>5 equation challenges</strong>.</p>
-      <p>Each question has a <strong>1-minute countdown timer</strong>. The timer resets for each new question.</p>
+      <p>You will complete <strong>5 timed equation challenges</strong>.</p>
+      <p>Each question starts with <strong>60 seconds</strong>. If time runs out, the question is marked incorrect and the next question begins automatically.</p>
 
       <div class="card warning">
         <p><strong>Your challenge includes:</strong></p>
         <p>☐ 2 equations with one solution</p>
-        <p>☐ 1 literal equation</p>
+        <p>☐ 1 literal equation where you type the value of x</p>
         <p>☐ 1 equation with no solution</p>
         <p>☐ 1 equation with infinitely many solutions</p>
       </div>
@@ -173,14 +164,18 @@
         <h2 id="questionTitle">Solve the Equation</h2>
         <div class="equation" id="equationText"></div>
 
-        <div id="numericAnswerArea">
-          <label for="answerInput"><strong>Your answer for x:</strong></label><br />
-          <input type="number" id="answerInput" placeholder="Enter x-value" />
+        <div id="numberAnswerArea">
+          <label for="answerInput"><strong>Type the value of x:</strong></label><br />
+          <input type="number" id="answerInput" placeholder="Example: 4" />
         </div>
 
-        <div id="multipleChoiceArea" class="hidden">
-          <label for="choiceInput"><strong>Choose the correct answer:</strong></label><br />
-          <select id="choiceInput"></select>
+        <div id="solutionTypeArea" class="hidden">
+          <label for="solutionTypeInput"><strong>Select the solution type:</strong></label><br />
+          <select id="solutionTypeInput">
+            <option value="">Select an answer</option>
+            <option value="no-solution">No Solution</option>
+            <option value="infinite">Infinitely Many Solutions</option>
+          </select>
         </div>
 
         <br />
@@ -222,13 +217,13 @@
 
   <script>
     let problems = [];
-    let currentProblem = 0;
+    let currentProblemIndex = 0;
     let score = 0;
-    let questionTimer = 60;
-    let timerInterval;
+    let timeLeft = 60;
+    let timerInterval = null;
     let studentName = "";
     let totalSecondsUsed = 0;
-    let questionAnswered = false;
+    let questionLocked = false;
 
     function randomInt(min, max) {
       return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -237,20 +232,27 @@
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
+        const temp = array[i];
+        array[i] = array[j];
+        array[j] = temp;
       }
       return array;
     }
 
     function formatSignedNumber(n) {
-      return n >= 0 ? "+ " + n : "- " + Math.abs(n);
+      if (n >= 0) {
+        return "+ " + n;
+      }
+      return "- " + Math.abs(n);
     }
 
     function generateOneSolutionProblem() {
-      const type = randomInt(1, 3);
       let x = randomInt(-10, 10);
-      while (x === 0) x = randomInt(-10, 10);
+      while (x === 0) {
+        x = randomInt(-10, 10);
+      }
 
+      const type = randomInt(1, 3);
       let equation = "";
 
       if (type === 1) {
@@ -269,102 +271,61 @@
       }
 
       if (type === 3) {
-        const a = randomInt(2, 8);
+        let a = randomInt(2, 8);
+        let c = randomInt(2, 8);
+
+        while (a === c) {
+          c = randomInt(2, 8);
+        }
+
         const b = randomInt(-10, 10);
-        const c = randomInt(2, 8);
-        while (c === a) c = randomInt(2, 8);
         const d = (a - c) * x + b;
         equation = `${a}x ${formatSignedNumber(b)} = ${c}x ${formatSignedNumber(d)}`;
       }
 
       return {
         type: "One Solution",
-        title: "Solve the Equation",
+        title: "Solve for x",
         equation: equation,
-        answerType: "number",
+        answerMode: "number",
         answer: x
       };
     }
 
     function generateLiteralEquationProblem() {
-      const literalProblems = [
-        {
-          equation: "A = lw, solve for w",
-          choices: [
-            { text: "w = A / l", correct: true },
-            { text: "w = Al", correct: false },
-            { text: "w = l / A", correct: false },
-            { text: "w = A - l", correct: false }
-          ]
-        },
-        {
-          equation: "d = rt, solve for t",
-          choices: [
-            { text: "t = d / r", correct: true },
-            { text: "t = dr", correct: false },
-            { text: "t = r / d", correct: false },
-            { text: "t = d - r", correct: false }
-          ]
-        },
-        {
-          equation: "C = 2πr, solve for r",
-          choices: [
-            { text: "r = C / 2π", correct: true },
-            { text: "r = 2πC", correct: false },
-            { text: "r = 2π / C", correct: false },
-            { text: "r = C - 2π", correct: false }
-          ]
-        },
-        {
-          equation: "y = mx + b, solve for m",
-          choices: [
-            { text: "m = (y - b) / x", correct: true },
-            { text: "m = y - bx", correct: false },
-            { text: "m = x / (y - b)", correct: false },
-            { text: "m = (y + b) / x", correct: false }
-          ]
-        },
-        {
-          equation: "V = lwh, solve for h",
-          choices: [
-            { text: "h = V / lw", correct: true },
-            { text: "h = Vlw", correct: false },
-            { text: "h = lw / V", correct: false },
-            { text: "h = V - lw", correct: false }
-          ]
-        }
-      ];
+      let x = randomInt(-10, 10);
+      while (x === 0) {
+        x = randomInt(-10, 10);
+      }
 
-      const selected = literalProblems[randomInt(0, literalProblems.length - 1)];
-      selected.choices = shuffle(selected.choices);
+      const a = randomInt(2, 9);
+      const b = randomInt(-12, 12);
+      const y = a * x + b;
 
       return {
         type: "Literal Equation",
-        title: "Rearrange the Literal Equation",
-        equation: selected.equation,
-        answerType: "choice",
-        choices: selected.choices,
-        answer: selected.choices.findIndex(choice => choice.correct)
+        title: "Use the formula to solve for x",
+        equation: `y = ax + b, where y = ${y}, a = ${a}, and b = ${b}`,
+        answerMode: "number",
+        answer: x
       };
     }
 
     function generateNoSolutionProblem() {
-      const a = randomInt(2, 8);
+      const a = randomInt(2, 9);
       const b = randomInt(-10, 10);
-      let c = b;
-      while (c === b) c = randomInt(-10, 10);
+      let c = randomInt(-10, 10);
+
+      while (c === b) {
+        c = randomInt(-10, 10);
+      }
 
       return {
         type: "No Solution",
-        title: "Identify the Solution Type",
+        title: "Select the Solution Type",
         equation: `${a}x ${formatSignedNumber(b)} = ${a}x ${formatSignedNumber(c)}`,
-        answerType: "choice",
-        choices: [
-          { text: "One solution", correct: false },
-          { text: "No solution", correct: true },
-          { text: "Infinitely many solutions", correct: false }
-        ],
-        answer: 1
+        answerMode: "solution-type",
+        answer: "no-solution"
       };
     }
 
@@ -374,28 +335,21 @@
 
       return {
         type: "Infinitely Many Solutions",
-        title: "Identify the Solution Type",
+        title: "Select the Solution Type",
         equation: `${a}(x ${formatSignedNumber(b)}) = ${a}x ${formatSignedNumber(a * b)}`,
-        answerType: "choice",
-        choices: [
-          { text: "One solution", correct: false },
-          { text: "No solution", correct: false },
-          { text: "Infinitely many solutions", correct: true }
-        ],
-        answer: 2
+        answerMode: "solution-type",
+        answer: "infinite"
       };
     }
 
     function buildProblemSet() {
-      const set = [
+      return shuffle([
         generateOneSolutionProblem(),
         generateOneSolutionProblem(),
         generateLiteralEquationProblem(),
         generateNoSolutionProblem(),
         generateInfiniteSolutionsProblem()
-      ];
-
-      return shuffle(set);
+      ]);
     }
 
     function startChallenge() {
@@ -407,7 +361,7 @@
       }
 
       problems = buildProblemSet();
-      currentProblem = 0;
+      currentProblemIndex = 0;
       score = 0;
       totalSecondsUsed = 0;
 
@@ -418,119 +372,107 @@
       showProblem();
     }
 
-    function startQuestionTimer() {
+    function showProblem() {
       clearInterval(timerInterval);
-      questionTimer = 60;
-      questionAnswered = false;
+
+      questionLocked = false;
+      timeLeft = 60;
+
+      const problem = problems[currentProblemIndex];
+
+      document.getElementById("progressText").textContent = `Problem ${currentProblemIndex + 1} of 5`;
+      document.getElementById("problemTypeText").textContent = `Question Type: ${problem.type}`;
+      document.getElementById("questionTitle").textContent = problem.title;
+      document.getElementById("equationText").textContent = problem.equation;
+      document.getElementById("feedback").textContent = "";
+
+      document.getElementById("answerInput").value = "";
+      document.getElementById("solutionTypeInput").value = "";
+
+      if (problem.answerMode === "number") {
+        document.getElementById("numberAnswerArea").classList.remove("hidden");
+        document.getElementById("solutionTypeArea").classList.add("hidden");
+      } else {
+        document.getElementById("numberAnswerArea").classList.add("hidden");
+        document.getElementById("solutionTypeArea").classList.remove("hidden");
+      }
+
+      updateTimerDisplay();
+      timerInterval = setInterval(countDown, 1000);
+    }
+
+    function countDown() {
+      timeLeft = timeLeft - 1;
       updateTimerDisplay();
 
-      timerInterval = setInterval(() => {
-        questionTimer--;
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        timeLeft = 0;
         updateTimerDisplay();
-
-        if (questionTimer <= 0) {
-          clearInterval(timerInterval);
-          handleTimeUp();
-        }
-      }, 1000);
+        timeUp();
+      }
     }
 
     function updateTimerDisplay() {
-      document.getElementById("timer").textContent = questionTimer;
+      document.getElementById("timer").textContent = timeLeft;
+
       const timerDisplay = document.getElementById("timerDisplay");
 
-      if (questionTimer <= 10) {
+      if (timeLeft <= 10) {
         timerDisplay.classList.add("low");
       } else {
         timerDisplay.classList.remove("low");
       }
     }
 
-    function handleTimeUp() {
-      if (questionAnswered) return;
-
-      questionAnswered = true;
-      totalSecondsUsed += 60;
-
-      document.getElementById("feedback").textContent = "Time is up. This question is marked incorrect.";
-
-      setTimeout(() => {
-        moveToNextProblem();
-      }, 1400);
-    }
-
-    function showProblem() {
-      const problem = problems[currentProblem];
-
-      document.getElementById("progressText").textContent = `Problem ${currentProblem + 1} of 5`;
-      document.getElementById("problemTypeText").textContent = `Question Type: ${problem.type}`;
-      document.getElementById("questionTitle").textContent = problem.title;
-      document.getElementById("equationText").textContent = problem.equation;
-      document.getElementById("feedback").textContent = "";
-
-      const numericArea = document.getElementById("numericAnswerArea");
-      const choiceArea = document.getElementById("multipleChoiceArea");
-      const answerInput = document.getElementById("answerInput");
-      const choiceInput = document.getElementById("choiceInput");
-
-      answerInput.value = "";
-      choiceInput.innerHTML = "";
-
-      if (problem.answerType === "number") {
-        numericArea.classList.remove("hidden");
-        choiceArea.classList.add("hidden");
-        answerInput.focus();
-      } else {
-        numericArea.classList.add("hidden");
-        choiceArea.classList.remove("hidden");
-
-        const defaultOption = document.createElement("option");
-        defaultOption.value = "";
-        defaultOption.textContent = "Select an answer";
-        choiceInput.appendChild(defaultOption);
-
-        problem.choices.forEach((choice, index) => {
-          const option = document.createElement("option");
-          option.value = index;
-          option.textContent = choice.text;
-          choiceInput.appendChild(option);
-        });
+    function timeUp() {
+      if (questionLocked) {
+        return;
       }
 
-      startQuestionTimer();
+      questionLocked = true;
+      totalSecondsUsed += 60;
+
+      document.getElementById("feedback").textContent = "Time is up. Moving to the next question.";
+
+      setTimeout(moveToNextProblem, 1200);
     }
 
     function checkAnswer() {
-      if (questionAnswered) return;
+      if (questionLocked) {
+        return;
+      }
 
-      const problem = problems[currentProblem];
+      const problem = problems[currentProblemIndex];
+      let userAnswer = "";
       let isCorrect = false;
 
-      if (problem.answerType === "number") {
-        const answerValue = document.getElementById("answerInput").value;
+      if (problem.answerMode === "number") {
+        userAnswer = document.getElementById("answerInput").value;
 
-        if (answerValue === "") {
-          alert("Please enter an answer.");
+        if (userAnswer === "") {
+          alert("Please type an answer.");
           return;
         }
 
-        isCorrect = Number(answerValue) === problem.answer;
+        isCorrect = Number(userAnswer) === problem.answer;
       }
 
-      if (problem.answerType === "choice") {
-        const choiceValue = document.getElementById("choiceInput").value;
+      if (problem.answerMode === "solution-type") {
+        userAnswer = document.getElementById("solutionTypeInput").value;
 
-        if (choiceValue === "") {
+        if (userAnswer === "") {
           alert("Please select an answer.");
           return;
         }
 
-        isCorrect = Number(choiceValue) === problem.answer;
+        isCorrect = userAnswer === problem.answer;
       }
 
-      questionAnswered = true;
+      questionLocked = true;
       clearInterval(timerInterval);
-      totalSecondsUsed += 60 - questionTimer;
+
+      totalSecondsUsed += 60 - timeLeft;
 
       if (isCorrect) {
         score++;
@@ -539,24 +481,25 @@
         document.getElementById("feedback").textContent = getCorrectAnswerText(problem);
       }
 
-      setTimeout(() => {
-        moveToNextProblem();
-      }, 1400);
+      setTimeout(moveToNextProblem, 1200);
     }
 
     function getCorrectAnswerText(problem) {
-      if (problem.answerType === "number") {
+      if (problem.answerMode === "number") {
         return `Incorrect. The correct answer was x = ${problem.answer}.`;
       }
 
-      const correctChoice = problem.choices.find(choice => choice.correct);
-      return `Incorrect. The correct answer was: ${correctChoice.text}.`;
+      if (problem.answer === "no-solution") {
+        return "Incorrect. The correct answer was No Solution.";
+      }
+
+      return "Incorrect. The correct answer was Infinitely Many Solutions.";
     }
 
     function moveToNextProblem() {
-      currentProblem++;
+      currentProblemIndex++;
 
-      if (currentProblem < 5) {
+      if (currentProblemIndex < problems.length) {
         showProblem();
       } else {
         endChallenge();
@@ -592,6 +535,7 @@
 
     function restartChallenge() {
       clearInterval(timerInterval);
+
       document.getElementById("endScreen").classList.add("hidden");
       document.getElementById("startScreen").classList.remove("hidden");
       document.getElementById("studentName").value = studentName;
